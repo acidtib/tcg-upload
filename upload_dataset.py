@@ -4,12 +4,11 @@ Script to upload a multi-split image dataset to Hugging Face Hub.
 Dataset structure:
 ├── data/
 │   ├── train/
-│   │   └── <card-id>/
-│   │       ├── 0000.jpg    # Original image
-│   │       ├── 0001.jpg    # Augmented version 1
-│   │       └── ...
+│   │   └── <card-id>.jpg    # Original image
 │   ├── test/
-│   └── validation/
+│   │   └── <card-id>.jpg    # Test image
+│   ├── validation/
+│   │   └── <card-id>.jpg    # Validation image
 """
 
 import os
@@ -18,7 +17,7 @@ import json
 import tempfile
 import shutil
 from pathlib import Path
-from datasets import load_dataset, Features, ClassLabel, Image
+from datasets import load_dataset, Features, ClassLabel, Image, Dataset, DatasetDict
 from huggingface_hub import HfApi
 from PIL import Image as PILImage
 import argparse
@@ -42,10 +41,10 @@ def count_examples(path):
     if not os.path.exists(path):
         return 0
     count = 0
-    for d in os.listdir(path):
-        dir_path = os.path.join(path, d)
-        if os.path.isdir(dir_path):
-            count += len([f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))])
+    for f in os.listdir(path):
+        file_path = os.path.join(path, f)
+        if os.path.isfile(file_path) and f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+            count += 1
     return count
 
 
@@ -53,27 +52,29 @@ def create_embed_images_function(label_to_id):
     """Create embed_images function with access to label_to_id mapping"""
     def embed_images(example):
         """Embed images as bytes and convert labels to numeric IDs"""
-        # Open image and convert to bytes
-        img = PILImage.open(example["image"].filename)
+        # Handle both file paths (from manual loading) and PIL Image objects
+        if isinstance(example["image"], str):
+            # File path from manual loading
+            img = PILImage.open(example["image"])
+            image_filename = os.path.basename(example["image"])
+        else:
+            # PIL Image object (from imagefolder loader)
+            img = example["image"]
+            image_filename = getattr(example["image"], 'filename', 'unknown.jpg')
+            if hasattr(example["image"], 'filename'):
+                image_filename = os.path.basename(example["image"].filename)
+
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format=img.format or 'JPEG')
         img_byte_arr = img_byte_arr.getvalue()
 
-        # Get just the image filename without the UUID folder
-        full_path = example["image"].filename
-        image_filename = os.path.basename(full_path)
-
-        # Get the label (UUID folder name) and convert to numeric class
-        label_uuid = os.path.basename(os.path.dirname(full_path))
-        label_id = label_to_id[label_uuid]
-
-        # Return new example with embedded image and numeric label
+        # Return new example with embedded image and original label (already converted)
         return {
             "image": {
                 "bytes": img_byte_arr,
                 "path": image_filename
             },
-            "label": label_id
+            "label": example["label"]  # Label is already the numeric ID
         }
     return embed_images
 
@@ -127,7 +128,11 @@ def upload_dataset(
         if not train_dir.exists():
             raise FileNotFoundError(f"Training directory not found at {train_dir}")
 
-        labels = sorted([d for d in os.listdir(train_dir) if os.path.isdir(train_dir / d)])
+        # Get labels from image filenames (card-ids without extensions)
+        labels = sorted(list(set([
+            os.path.splitext(f)[0] for f in os.listdir(train_dir)
+            if os.path.isfile(train_dir / f) and f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp'))
+        ])))
         num_labels = len(labels)
         print(f"Found {num_labels} unique labels: {labels[:5]}...")
 
@@ -202,15 +207,50 @@ def upload_dataset(
         with open(readme_path, "w") as f:
             f.write(new_content)
 
-        # Load dataset with proper features
-        features = Features({
-            "image": Image(),
-            "label": ClassLabel(num_classes=num_labels, names=labels)
-        })
+        # Create dataset manually for flat structure
+        def load_images_from_dir(split_dir, split_name):
+            """Load images from a flat directory structure"""
+            if not split_dir.exists():
+                print(f"Warning: {split_name} directory not found at {split_dir}")
+                return []
 
-        print(f"\nLoading dataset...")
-        dataset = load_dataset("imagefolder", data_dir=str(data_path), features=features)
-        print("Original dataset:", dataset)
+            examples = []
+            for img_file in split_dir.iterdir():
+                if img_file.is_file() and img_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
+                    # Extract label from filename (card-id without extension)
+                    label_name = img_file.stem
+                    if label_name in label_to_id:
+                        examples.append({
+                            "image": str(img_file),
+                            "label": label_to_id[label_name]
+                        })
+                    else:
+                        print(f"Warning: Unknown label '{label_name}' in {split_name}, skipping {img_file.name}")
+            return examples
+
+        print(f"\nLoading dataset manually...")
+
+        # Load each split manually
+        dataset_dict = {}
+
+        # Load train split
+        train_examples = load_images_from_dir(train_dir, "train")
+        if train_examples:
+            dataset_dict["train"] = Dataset.from_list(train_examples).cast_column("image", Image())
+
+        # Load validation split
+        val_examples = load_images_from_dir(val_dir, "validation")
+        if val_examples:
+            dataset_dict["validation"] = Dataset.from_list(val_examples).cast_column("image", Image())
+
+        # Load test split
+        test_examples = load_images_from_dir(test_dir, "test")
+        if test_examples:
+            dataset_dict["test"] = Dataset.from_list(test_examples).cast_column("image", Image())
+
+        # Create DatasetDict
+        dataset = DatasetDict(dataset_dict)
+        print("Loaded dataset:", dataset)
 
         # Process and embed images in each split
         embedded_dataset = {}
@@ -255,8 +295,10 @@ def upload_dataset(
             sample_size = min(100, len(split_dataset))
             sample_total = 0
             for example in split_dataset.select(range(sample_size)):
+                # Handle the PIL Image object directly
+                img = example["image"]
                 img_byte_arr = io.BytesIO()
-                example["image"].save(img_byte_arr, format=example["image"].format or 'JPEG')
+                img.save(img_byte_arr, format=img.format or 'JPEG')
                 sample_total += len(img_byte_arr.getvalue())
             avg_image_size = sample_total / sample_size
 

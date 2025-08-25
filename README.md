@@ -1,11 +1,31 @@
 # Ojo Upload Magic 🪄
 
-A Python script for uploading multi-split image datasets to Hugging Face Hub. This tool processes image datasets organized by class folders (train/validation/test splits) and uploads them as sharded parquet files to the Hugging Face Hub with proper dataset cards and metadata.
+A Python script for uploading multi-split image datasets to Hugging Face Hub. This tool processes image datasets organized with flat image files (train/validation/test splits) and uploads them as sharded parquet files to the Hugging Face Hub with proper dataset cards and metadata.
+
+## Dataset Structure
+
+The script expects a flat dataset structure where each image file represents a single class/card-id:
+
+```
+data/
+├── train/
+│   ├── card-001.jpg
+│   ├── card-002.jpg
+│   └── card-003.jpg
+├── test/
+│   ├── card-001.jpg
+│   ├── card-002.jpg
+│   └── card-003.jpg
+└── validation/
+    ├── card-001.jpg
+    ├── card-002.jpg
+    └── card-003.jpg
+```
 
 ## Features
 
 - Supports multi-split datasets (train/validation/test)
-- Automatically generates class labels from folder structure
+- Automatically generates class labels from image filenames (card-ids)
 - Creates sharded parquet files for efficient storage and loading
 - Generates comprehensive dataset cards with statistics
 - Handles large datasets with automatic sharding
