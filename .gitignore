@@ -192,3 +192,5 @@ Desktop.ini
 #*.joblib
 #*.h5
 #*.pb
+
+.ruff_cache/
