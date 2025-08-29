@@ -1,4 +1,14 @@
-datasets
-pillow
-huggingface_hub
+# Core dependencies for dataset upload
+datasets>=2.14.0
+huggingface_hub>=0.17.0
+Pillow>=9.0.0
+pandas>=1.5.0
+tqdm>=4.64.0
+psutil>=5.9.0
+
+# Optional but recommended for better performance
+pyarrow>=10.0.0
+fsspec>=2023.1.0
+
+# Development tools
 ruff
