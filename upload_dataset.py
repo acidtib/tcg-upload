@@ -23,7 +23,7 @@ import json
 import tempfile
 import shutil
 from pathlib import Path
-from datasets import load_dataset, Features, ClassLabel, Image, Dataset, DatasetDict
+from datasets import Image, Dataset, DatasetDict
 from huggingface_hub import HfApi
 from PIL import Image as PILImage
 import argparse
@@ -159,7 +159,7 @@ def upload_dataset(
         val_examples = count_examples(val_dir)
         test_examples = count_examples(test_dir)
 
-        print(f"\nDataset statistics:")
+        print("\nDataset statistics:")
         print(f"Train: {train_examples} examples, {train_size/1024/1024:.2f}MB")
         print(f"Validation: {val_examples} examples, {val_size/1024/1024:.2f}MB")
         print(f"Test: {test_examples} examples, {test_size/1024/1024:.2f}MB")
@@ -240,7 +240,7 @@ def upload_dataset(
                         print(f"Warning: Unknown label '{label_name}' in {split_name}, skipping directory {card_dir.name}")
             return examples
 
-        print(f"\nLoading dataset manually...")
+        print("\nLoading dataset manually...")
 
         # Load each split manually
         dataset_dict = {}
