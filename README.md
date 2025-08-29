@@ -75,7 +75,9 @@ Usage:
 ```
 python upload_dataset.py ./data your-username/your-dataset-name
 ```
+
 # With additional options
+```
 python upload_dataset.py ./data your-username/your-dataset-name \
     --token your_hf_token
 ```
