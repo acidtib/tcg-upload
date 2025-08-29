@@ -1,31 +1,35 @@
 # Ojo Upload Magic 🪄
 
-A Python script for uploading multi-split image datasets to Hugging Face Hub. This tool processes image datasets organized with flat image files (train/validation/test splits) and uploads them as sharded parquet files to the Hugging Face Hub with proper dataset cards and metadata.
+A Python script for uploading multi-split image datasets to Hugging Face Hub. This tool processes image datasets organized with nested directories for each card/class (train/validation/test splits) and uploads them as sharded parquet files to the Hugging Face Hub with proper dataset cards and metadata.
 
 ## Dataset Structure
 
-The script expects a flat dataset structure where each image file represents a single class/card-id:
+The script expects a nested dataset structure where each card/class has its own directory containing multiple images:
 
 ```
 data/
 ├── train/
-│   ├── card-001.jpg
-│   ├── card-002.jpg
-│   └── card-003.jpg
+│   ├── card-001/
+│   │   ├── 0000.jpg
+│   │   ├── 0001.jpg
+│   │   └── 0002.jpg
+│   └── card-002/
+│       └── 0000.jpg
 ├── test/
-│   ├── card-001.jpg
-│   ├── card-002.jpg
-│   └── card-003.jpg
+│   └── card-001/
+│       └── 0000.jpg
 └── validation/
-    ├── card-001.jpg
-    ├── card-002.jpg
-    └── card-003.jpg
+    ├── card-001/
+    │   ├── 0000.jpg
+    │   └── 0001.jpg
+    └── card-002/
+        └── 0000.jpg
 ```
 
 ## Features
 
 - Supports multi-split datasets (train/validation/test)
-- Automatically generates class labels from image filenames (card-ids)
+- Automatically generates class labels from directory names (card-ids)
 - Creates sharded parquet files for efficient storage and loading
 - Generates comprehensive dataset cards with statistics
 - Handles large datasets with automatic sharding
@@ -47,13 +51,13 @@ Before running:
 Create and activate a virtual environment:
 ```bash
 # Create virtual environment
-python -m venv myenv
+python -m venv ojo
 
 # Activate virtual environment
 # On Linux/macOS:
-source myenv/bin/activate
+source ojo/bin/activate
 # On Windows:
-myenv\Scripts\activate
+ojo\Scripts\activate
 ```
 
 Install dependencies:

@@ -4,11 +4,17 @@ Script to upload a multi-split image dataset to Hugging Face Hub.
 Dataset structure:
 ├── data/
 │   ├── train/
-│   │   └── <card-id>.jpg    # Original image
+│   │   └── <card-id>/
+│   │       └── 0000.jpg
+│   │       └── 0001.jpg
+│   │       └── 0002.jpg
 │   ├── test/
-│   │   └── <card-id>.jpg    # Test image
+│   │   └── <card-id>/
+│   │       └── 0000.jpg
 │   ├── validation/
-│   │   └── <card-id>.jpg    # Validation image
+│   │   └── <card-id>/
+│   │       └── 0000.jpg
+│   │       └── 0001.jpg
 """
 
 import os
@@ -31,7 +37,7 @@ def get_directory_size(path):
     for dirpath, dirnames, filenames in os.walk(path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
-            if os.path.exists(fp):  # Check if file still exists
+            if os.path.exists(fp) and f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):  # Only count image files
                 total_size += os.path.getsize(fp)
     return total_size
 
@@ -41,10 +47,13 @@ def count_examples(path):
     if not os.path.exists(path):
         return 0
     count = 0
-    for f in os.listdir(path):
-        file_path = os.path.join(path, f)
-        if os.path.isfile(file_path) and f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
-            count += 1
+    for card_dir in os.listdir(path):
+        card_path = os.path.join(path, card_dir)
+        if os.path.isdir(card_path):
+            for f in os.listdir(card_path):
+                file_path = os.path.join(card_path, f)
+                if os.path.isfile(file_path) and f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                    count += 1
     return count
 
 
@@ -128,10 +137,10 @@ def upload_dataset(
         if not train_dir.exists():
             raise FileNotFoundError(f"Training directory not found at {train_dir}")
 
-        # Get labels from image filenames (card-ids without extensions)
+        # Get labels from card directory names
         labels = sorted(list(set([
-            os.path.splitext(f)[0] for f in os.listdir(train_dir)
-            if os.path.isfile(train_dir / f) and f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp'))
+            f for f in os.listdir(train_dir)
+            if os.path.isdir(train_dir / f)
         ])))
         num_labels = len(labels)
         print(f"Found {num_labels} unique labels: {labels[:5]}...")
@@ -207,25 +216,28 @@ def upload_dataset(
         with open(readme_path, "w") as f:
             f.write(new_content)
 
-        # Create dataset manually for flat structure
+        # Create dataset manually for nested structure
         def load_images_from_dir(split_dir, split_name):
-            """Load images from a flat directory structure"""
+            """Load images from a nested directory structure"""
             if not split_dir.exists():
                 print(f"Warning: {split_name} directory not found at {split_dir}")
                 return []
 
             examples = []
-            for img_file in split_dir.iterdir():
-                if img_file.is_file() and img_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
-                    # Extract label from filename (card-id without extension)
-                    label_name = img_file.stem
+            for card_dir in split_dir.iterdir():
+                if card_dir.is_dir():
+                    # Extract label from directory name (card-id)
+                    label_name = card_dir.name
                     if label_name in label_to_id:
-                        examples.append({
-                            "image": str(img_file),
-                            "label": label_to_id[label_name]
-                        })
+                        # Process all images in this card directory
+                        for img_file in card_dir.iterdir():
+                            if img_file.is_file() and img_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
+                                examples.append({
+                                    "image": str(img_file),
+                                    "label": label_to_id[label_name]
+                                })
                     else:
-                        print(f"Warning: Unknown label '{label_name}' in {split_name}, skipping {img_file.name}")
+                        print(f"Warning: Unknown label '{label_name}' in {split_name}, skipping directory {card_dir.name}")
             return examples
 
         print(f"\nLoading dataset manually...")
