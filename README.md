@@ -1,4 +1,4 @@
-# Ojo Upload Magic 🪄
+# TCG Upload
 
 A high-performance Python script for uploading multi-split image datasets to Hugging Face Hub with streaming processing, resume functionality, and incremental processing capabilities.
 
@@ -37,7 +37,7 @@ data/
 ## Features
 
 - **Streaming processing**: Memory-efficient batch processing for all dataset sizes
-- **Multi-processing**: Parallel image processing using all CPU cores  
+- **Multi-processing**: Parallel image processing using all CPU cores
 - **Smart sharding**: Automatic sharding based on file sizes for optimal Hub performance
 - **Resume functionality**: Continue interrupted uploads from where they left off
 - **Incremental processing**: Process only first N classes with `--amount` flag for testing and incremental builds
@@ -121,7 +121,7 @@ upload_dataset(
 
 The script generates:
 1. **Sharded parquet files** - `split-00000-of-00010.parquet` format for optimal Hub loading
-2. **Dataset card** - Comprehensive README.md with statistics and metadata  
+2. **Dataset card** - Comprehensive README.md with statistics and metadata
 3. **Label mappings** - JSON file mapping label IDs to class names
 4. **Progress tracking** - `progress.json` file for resume functionality (local only, not uploaded)
 
@@ -165,7 +165,7 @@ Process only a subset of classes for testing or incremental dataset building:
 
 ### Use Cases
 - **Testing**: Validate your pipeline with just a few classes first
-- **Incremental builds**: Add classes to your dataset progressively  
+- **Incremental builds**: Add classes to your dataset progressively
 - **Resource management**: Process large datasets in smaller chunks
 - **Quick validation**: Check data quality with a sample
 
@@ -181,7 +181,7 @@ python upload_dataset.py ./data username/full-dataset --amount 50
 
 ### How It Works
 - Classes are processed alphabetically for consistent ordering
-- Applied across all splits (train/validation/test)  
+- Applied across all splits (train/validation/test)
 - Perfect for incremental dataset expansion
 - Compatible with resume functionality
 
@@ -190,7 +190,7 @@ python upload_dataset.py ./data username/full-dataset --amount 50
 # 1. Test with 10 classes first
 python upload_dataset.py ./magic-cards username/magic-test --amount 10
 
-# 2. Expand to 100 classes  
+# 2. Expand to 100 classes
 python upload_dataset.py ./magic-cards username/magic-100 --amount 100
 
 # 3. Finally process all classes
@@ -222,7 +222,7 @@ python upload_dataset.py ./magic-data acidtib/magic-cards \
 python upload_dataset.py ./magic-data acidtib/magic-test \
     --amount 20
 
-# Small test dataset  
+# Small test dataset
 python upload_dataset.py ./test-data acidtib/test-cards
 
 # Resume interrupted upload with amount limit
@@ -240,7 +240,7 @@ python upload_dataset.py ./magic-data acidtib/magic-cards \
 
 **Processing Errors**: Verify directory structure and image file integrity
 
-**Resume Issues**: 
+**Resume Issues**:
 - Ensure same output directory is used when resuming
 - Check `progress.json` file exists in output directory
 - Configuration changes will prompt for confirmation
